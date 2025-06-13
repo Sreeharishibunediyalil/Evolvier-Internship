@@ -1,130 +1,79 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const Article = require("./schema"); // ✅ Importing Article model
-
-dotenv.config(); // ✅ Load environment variables
-
+const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-console.log("MONGO_URL from .env:", process.env.MONGO_URL);
-
-const mongoURI = process.env.MONGO_URL;
-
-mongoose.connect(mongoURI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch(err => console.error("❌ MongoDB connection error:", err));
-
 app.use(express.json());
 
-// ✅ Create Article
-app.post("/api/articles", async (req, res) => {
-  const { title, content, author } = req.body;
-  if (!title || !content || !author) {
-    return res.status(400).json({ error: "Title, content, and author are required" });
-  }
-  try {
-    const newArticle = new Article({ title, content, author });
-    await newArticle.save();
-    res.status(201).json(newArticle);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create article" });
-  }
+app.get('/api/first', (req, res) => {
+  res.json({ message: 'Hello from the test route!' });
 });
 
-// ✅ Get All Articles
-app.get("/api/articles", async (req, res) => {
-  try {
-    const articles = await Article.find();
-    res.json(articles);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch articles" });
-  }
+app.get('/api/test', (req, res) => {
+  res.json(articles);
 });
 
-// ✅ Patch (Partial Update)
-app.patch("/api/articles/:id", async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body;
-
-  if (Object.keys(updates).length === 0) {
-    return res.status(400).json({ error: "At least one field is required to update" });
-  }
-
-  try {
-    const updatedArticle = await Article.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedArticle) {
-      return res.status(404).json({ error: "Article not found" });
-    }
-
-    res.status(200).json({
-      message: "Article updated successfully",
-      updatedArticle,
-    });
-  } catch (error) {
-    console.error("Error patching article:", error);
-    res.status(500).json({ error: "Server error while updating the article" });
-  }
-});
-
-// ✅ Put (Full Update)
-app.put("/api/articles/:id", async (req, res) => {
-  const { id } = req.params;
-  const { title, content, author } = req.body;
-
-  if (!title || !content || !author) {
-    return res.status(400).json({ error: "All fields (title, content, author) are required" });
-  }
-
-  try {
-    const updatedArticle = await Article.findByIdAndUpdate(
-      id,
-      { title, content, author },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedArticle) {
-      return res.status(404).json({ error: "Article not found" });
-    }
-
-    res.status(200).json({
-      message: "Article updated successfully",
-      updatedArticle,
-    });
-  } catch (error) {
-    console.error("Error updating article:", error);
-    res.status(500).json({ error: "Server error while updating the article" });
-  }
-});
-
-// ✅ Delete Article
-app.delete("/api/articles/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const deletedArticle = await Article.findByIdAndDelete(id);
-
-    if (!deletedArticle) {
-      return res.status(404).json({ error: "Article not found" });
-    }
-
-    res.status(200).json({
-      message: "Article deleted successfully",
-      deletedArticle,
-    });
-  } catch (error) {
-    console.error("Error deleting article:", error);
-    res.status(500).json({ error: "Server error while deleting the article" });
-  }
-});
-
-// ✅ Start Server
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+app.post('/api/articles', (req,res) => {
+const{title, content} = req.body;
+  if(!title || !content) {
+  return res.status(400).json({ eorror : 'Title and content are required'});
+  }
+  const newID= Math.max(...articles.map(articles => articles.id))+1;
+  const newArticle = {
+    id: newID,
+    title,
+    content
+  };
+  articles.push(newArticle);
+  res.status(201).json(newArticle);
+});
+
+app.delete('/api/articles/:id', (req, res) => {
+const id = parseInt(req.params.id);
+const index = articles.findIndex (articles => articles.id === id);
+
+if (index === -1){
+  return res.status(404).json({ error: 'Article not found'});
+}
+
+const deletedArticle = articles.splice(index, 1)[0];
+res.json(deletedArticle);
+});
+
+app.put('/api/articles/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { title, content } = req.body;
+
+  if(!title || !content) {
+    return res.status(400).json({ error: 'Title and content are required' });
+  }
+
+  const article = articles.find(article => article.id === id);
+
+  if (!article) {
+    return res.status(404).json({ error: 'Article NOT FOUND' })
+  }
+  article.title = title;
+  article.content = content;
+  res.json(article);
+});
+
+const articles =[
+  {
+    id: 1,
+    title: "Getting Started with Express.js",
+    content: "Express.js is  minimal and flexible Node.js web application framework that provides a robust set of features for web applications."
+  },
+    {
+    id: 2,
+    title: "GET",
+    content: "Test GET."
+  },  {
+    id: 3,
+    title: "POST",
+    content: "Test POST."
+  }
+];

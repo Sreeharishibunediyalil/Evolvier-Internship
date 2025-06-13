@@ -1,57 +1,39 @@
+require('dotenv').config(); // Load environment variables from .env
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+const mongoURI = process.env.MONGO_URL;
 
-// Middleware - Explicitly configure CORS
-const corsOptions = {
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cors());
 
-// **Handle Preflight Requests Properly**
-app.options('*', (req, res) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.sendStatus(200);
-});
+// Connect to MongoDB
+mongoose.connect(mongoURI)
+  .then(() => console.log('MongoDB connected!'))
+  .catch(err => {
+    console.error('MongoDB connection error:', err.message);
+    console.error(err);
+  });
 
-const mongoURI = 'mongodb+srv://sreeharishibu63:lP9CcJw3iNHIMlG4@cluster0.gqgzcuo.mongodb.net/myDatabase?retryWrites=true&w=majority&appName=Cluster0';
-
-mongoose.connect(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-  .then(() => console.log('✅ MongoDB connected!'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
-
-// Schema & Model
+// Schema
 const ArticleSchema = new mongoose.Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
   author: { type: String, required: true },
   date: { type: Date, default: Date.now }
 });
+
 const Article = mongoose.model('Article', ArticleSchema);
 
-// API Routes with Proper Headers
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  next();
+// Routes
+app.get('/api/first', (req, res) => {
+  res.json({ message: 'Hello from the test route!' });
 });
 
-app.get('/api/articles', async (req, res) => {
+app.get('/api/test', async (req, res) => {
   try {
     const articles = await Article.find().sort({ date: -1 });
     res.json(articles);
@@ -63,13 +45,13 @@ app.get('/api/articles', async (req, res) => {
 app.post('/api/articles', async (req, res) => {
   const { title, content, author } = req.body;
   if (!title || !content || !author) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Title, content and author are required' });
   }
 
   try {
-    const article = new Article({ title, content, author });
-    await article.save();
-    res.status(201).json(article);
+    const newArticle = new Article({ title, content, author, date: new Date() });
+    await newArticle.save();
+    res.status(201).json(newArticle);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create article' });
   }
@@ -77,26 +59,41 @@ app.post('/api/articles', async (req, res) => {
 
 app.put('/api/articles/:id', async (req, res) => {
   const { title, content, author } = req.body;
+  if (!title || !content || !author) {
+    return res.status(400).json({ error: 'Title, content and author are required' });
+  }
+
   try {
-    const updated = await Article.findByIdAndUpdate(req.params.id, { title, content, author }, { new: true });
-    if (!updated) return res.status(404).json({ error: 'Not found' });
-    res.json(updated);
+    const updatedArticle = await Article.findByIdAndUpdate(
+      req.params.id,
+      { title, content, author },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedArticle) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    res.json(updatedArticle);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update' });
+    res.status(500).json({ error: 'Failed to update article' });
   }
 });
 
 app.delete('/api/articles/:id', async (req, res) => {
   try {
-    const deleted = await Article.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Not found' });
-    res.json(deleted);
+    const deletedArticle = await Article.findByIdAndDelete(req.params.id);
+
+    if (!deletedArticle) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    res.json(deletedArticle);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete' });
+    res.status(500).json({ error: 'Failed to delete article' });
   }
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
